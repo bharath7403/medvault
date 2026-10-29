@@ -24,6 +24,7 @@ import { EmergencyProfile } from './components/EmergencyProfile';
 import { AiAssistantDrawer } from './components/AiAssistantDrawer';
 import { AuthModal } from './components/AuthModal';
 import { DoctorPortal } from './components/DoctorPortal';
+import { EmergencyCardView } from './components/EmergencyCardView';
 
 export function App() {
   const [showLanding, setShowLanding] = useState<boolean>(true);
@@ -45,7 +46,40 @@ export function App() {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Scanned QR & Provider Mode State
+  const [emergencyViewData, setEmergencyViewData] = useState<{
+    healthId: string;
+    name?: string;
+    bloodGroup?: string;
+    dob?: string;
+    gender?: string;
+    phone?: string;
+  } | null>(null);
+  const [doctorInitialToken, setDoctorInitialToken] = useState<string>('');
+
   useEffect(() => {
+    // Check for Scanned QR or Doctor Code parameters in URL
+    const params = new URLSearchParams(window.location.search);
+    const emgParam = params.get('emg') || params.get('profile');
+    const doctorTokenParam = params.get('doctorToken') || params.get('token');
+
+    if (emgParam) {
+      setEmergencyViewData({
+        healthId: emgParam,
+        name: params.get('name') || undefined,
+        bloodGroup: params.get('bg') || undefined,
+        dob: params.get('dob') || undefined,
+        gender: params.get('gender') || undefined,
+        phone: params.get('phone') || undefined
+      });
+    }
+
+    if (doctorTokenParam) {
+      setCurrentRole('PROVIDER');
+      setDoctorInitialToken(doctorTokenParam);
+      setShowLanding(false);
+    }
+
     loadData();
   }, []);
 
@@ -102,6 +136,26 @@ export function App() {
 
   const activeSharesCount = shares.filter(s => s.status === 'ACTIVE').length;
 
+  // Render standalone Emergency Health ID Card when scanned via QR code
+  if (emergencyViewData) {
+    return (
+      <EmergencyCardView
+        healthId={emergencyViewData.healthId}
+        name={emergencyViewData.name}
+        bloodGroup={emergencyViewData.bloodGroup}
+        dob={emergencyViewData.dob}
+        gender={emergencyViewData.gender}
+        phone={emergencyViewData.phone}
+        onExit={() => setEmergencyViewData(null)}
+        onOpenDoctorPortal={() => {
+          setEmergencyViewData(null);
+          setCurrentRole('PROVIDER');
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
+
   if (showLanding && !authModalState.isOpen) {
     return (
       <>
@@ -156,7 +210,12 @@ export function App() {
           {currentRole === 'PROVIDER' ? (
             <DoctorPortal
               apiService={apiService}
-              onBackToApp={() => setCurrentRole('PATIENT')}
+              initialToken={doctorInitialToken}
+              onBackToApp={() => {
+                setCurrentRole('PATIENT');
+                setDoctorInitialToken('');
+              }}
+              onSelectRecord={setSelectedRecord}
             />
           ) : (
             <>

@@ -7,7 +7,8 @@ import {
   Plus, 
   X, 
   Copy,
-  Check
+  Check,
+  KeyRound
 } from 'lucide-react';
 import type { SharingSession, DocumentCategory } from '../types/medvault';
 
@@ -32,7 +33,12 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
     'LAB_REPORT', 'PRESCRIPTION', 'IMAGING_REPORT'
   ]);
   const [durationHours, setDurationHours] = useState<number>(24);
-  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+
+  const baseOrigin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://medvault.vercel.app';
 
   const toggleCategory = (cat: DocumentCategory) => {
     if (selectedCategories.includes(cat)) {
@@ -57,10 +63,16 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
     setIsModalOpen(false);
   };
 
-  const handleCopyToken = (token: string, id: string) => {
-    navigator.clipboard.writeText(`https://medvault.health/share/${token}`);
-    setCopiedTokenId(id);
-    setTimeout(() => setCopiedTokenId(null), 2000);
+  const handleCopyCodeOnly = (token: string, id: string) => {
+    navigator.clipboard.writeText(token);
+    setCopiedCodeId(id);
+    setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
+  const handleCopyFullLink = (token: string, id: string) => {
+    navigator.clipboard.writeText(`${baseOrigin}/?doctorToken=${token}`);
+    setCopiedLinkId(id);
+    setTimeout(() => setCopiedLinkId(null), 2000);
   };
 
   return (
@@ -70,10 +82,10 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <Share2 className="w-5 h-5 text-indigo-400" />
-            <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">Selective Health Record Sharing</h1>
+            <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">Selective Doctor Record Sharing</h1>
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            Grant temporary, granular access to specific medical document categories with instant revocation control.
+            Grant temporary, granular access to doctors using a simple 5-digit PIN code with instant revocation control.
           </p>
         </div>
 
@@ -82,7 +94,7 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
           className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>New Doctor Access Token</span>
+          <span>New 5-Digit Doctor Code</span>
         </button>
       </div>
 
@@ -92,86 +104,127 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
           Active & Historical Sharing Sessions ({shares.length})
         </h2>
 
-        <div className="space-y-3">
-          {shares.map((session) => {
-            const isActive = session.status === 'ACTIVE';
-            return (
-              <div 
-                key={session.id}
-                className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  isActive 
-                    ? 'bg-gray-900/80 border-gray-800' 
-                    : 'bg-gray-950/60 border-gray-900 opacity-60'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm font-bold text-white">{session.recipientName}</span>
-                    <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md ${
-                      isActive 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                      {session.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    Purpose: {session.purpose} • Created: {session.createdAt}
-                  </p>
-                  
-                  {/* Category Pills */}
-                  <div className="flex flex-wrap gap-1.5 pt-2">
-                    {session.categoriesAllowed.map((cat, idx) => (
-                      <span 
-                        key={idx}
-                        className="text-[10px] bg-gray-800 text-gray-300 px-2 py-0.5 rounded border border-gray-700 font-mono"
-                      >
-                        {cat.replace('_', ' ')}
+        {shares.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-gray-950/40 border border-dashed border-gray-800 text-center space-y-2">
+            <KeyRound className="w-8 h-8 text-indigo-400/50 mx-auto" />
+            <h4 className="text-sm font-bold text-white">No Active Sharing Sessions</h4>
+            <p className="text-xs text-gray-400 max-w-sm mx-auto">
+              Create a 5-digit code to share lab reports or prescriptions with your doctor during consultation.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            {shares.map((session) => {
+              const isActive = session.status === 'ACTIVE';
+              return (
+                <div 
+                  key={session.id}
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    isActive 
+                      ? 'bg-gray-900/80 border-gray-800 shadow-md' 
+                      : 'bg-gray-950/60 border-gray-900 opacity-60'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="text-sm font-bold text-white">{session.recipientName}</span>
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md ${
+                        isActive 
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                        {session.status}
                       </span>
-                    ))}
+
+                      {/* Prominent 5-Digit PIN Badge */}
+                      {isActive && (
+                        <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
+                          <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="text-xs font-bold font-mono tracking-widest">{session.accessToken}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-400">
+                      Purpose: {session.purpose} • Created: {session.createdAt} • Expires: {session.expiresAt}
+                    </p>
+                    
+                    {/* Category Pills */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {session.categoriesAllowed.map((cat, idx) => (
+                        <span 
+                          key={idx}
+                          className="text-[10px] bg-gray-800 text-gray-300 px-2.5 py-0.5 rounded border border-gray-700 font-medium"
+                        >
+                          {cat.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right Action Controls */}
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-800 shrink-0">
+                    {isActive && (
+                      <>
+                        {/* Copy 5-digit PIN button */}
+                        <button
+                          onClick={() => handleCopyCodeOnly(session.accessToken, session.id)}
+                          className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all"
+                          title="Copy 5-digit code for doctor"
+                        >
+                          {copiedCodeId === session.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Code Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-3.5 h-3.5" />
+                              <span>Copy 5-Digit PIN</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Copy Doctor Link */}
+                        <button
+                          onClick={() => handleCopyFullLink(session.accessToken, session.id)}
+                          className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-semibold border border-gray-700 transition-colors"
+                          title="Copy direct doctor portal link"
+                        >
+                          {copiedLinkId === session.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">Link Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-gray-400" />
+                              <span>Doctor Link</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Revoke */}
+                        <button
+                          onClick={() => onRevokeShare(session.id)}
+                          className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Revoke</span>
+                        </button>
+                      </>
+                    )}
+                    {!isActive && (
+                      <span className="text-xs text-rose-400 font-semibold italic">
+                        Access Terminated
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                {/* Right Action Controls */}
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-800 shrink-0">
-                  {isActive && (
-                    <>
-                      <button
-                        onClick={() => handleCopyToken(session.accessToken, session.id)}
-                        className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold border border-gray-700 transition-colors"
-                      >
-                        {copiedTokenId === session.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Copied Link!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Copy Access Link</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => onRevokeShare(session.id)}
-                        className="flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Revoke Access</span>
-                      </button>
-                    </>
-                  )}
-                  {!isActive && (
-                    <span className="text-xs text-rose-400 font-semibold italic">
-                      Session Terminated
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Create Share Modal */}
@@ -181,7 +234,10 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
             <div className="flex items-center justify-between border-b border-gray-800 pb-3 sm:pb-4">
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0" />
-                <h3 className="text-sm font-bold text-white">Create Secure Sharing Session</h3>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Generate 5-Digit Doctor Access Code</h3>
+                  <p className="text-[11px] text-gray-400">Create a secure PIN for your doctor consultation</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -193,11 +249,12 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
 
             <div className="space-y-3 sm:space-y-4 text-xs">
               <div>
-                <label className="block text-gray-400 mb-1 font-semibold">Recipient Name / Doctor</label>
+                <label className="block text-gray-400 mb-1 font-semibold">Doctor / Hospital Name</label>
                 <input
                   type="text"
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="e.g. Dr. Ananya Rao"
                   className="w-full p-2.5 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -208,18 +265,19 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
                   type="text"
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
+                  placeholder="e.g. Second Opinion Consultation"
                   className="w-full p-2.5 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               {/* Category Checkboxes */}
               <div>
-                <label className="block text-gray-400 mb-2 font-semibold">Permitted Record Categories</label>
+                <label className="block text-gray-400 mb-2 font-semibold">Permitted Document Categories</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
-                    { cat: 'LAB_REPORT', label: 'Lab Panels' },
+                    { cat: 'LAB_REPORT', label: 'Lab Reports' },
                     { cat: 'PRESCRIPTION', label: 'Prescriptions' },
-                    { cat: 'IMAGING_REPORT', label: 'Radiology / MRI' },
+                    { cat: 'IMAGING_REPORT', label: 'Radiology / Scans' },
                     { cat: 'DISCHARGE_SUMMARY', label: 'Discharge Summaries' }
                   ].map(({ cat, label }) => {
                     const isChecked = selectedCategories.includes(cat as DocumentCategory);
@@ -253,7 +311,7 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
                       onClick={() => setDurationHours(h)}
                       className={`py-2 rounded-xl border text-center font-bold text-xs transition-all ${
                         durationHours === h
-                          ? 'bg-indigo-600 text-white border-indigo-500'
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
                           : 'bg-gray-900 text-gray-400 border-gray-800'
                       }`}
                     >
@@ -268,7 +326,7 @@ export const SelectiveSharing: React.FC<SelectiveSharingProps> = ({
               onClick={handleCreateShare}
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition-all"
             >
-              Generate Authorized Token Link
+              Generate 5-Digit Doctor Code
             </button>
           </div>
         </div>

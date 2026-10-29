@@ -593,7 +593,7 @@ export const MOCK_SHARES: SharingSession[] = [
     createdAt: '2026-10-22 10:30:00',
     expiresAt: '2026-10-23 10:30:00',
     status: 'ACTIVE',
-    accessToken: 'mv_share_tok_89a7f3b12e',
+    accessToken: '48201',
     accessCount: 2
   },
   {
@@ -605,7 +605,7 @@ export const MOCK_SHARES: SharingSession[] = [
     createdAt: '2026-03-15 14:00:00',
     expiresAt: '2026-03-16 14:00:00',
     status: 'EXPIRED',
-    accessToken: 'mv_share_tok_12c4d5e6f7',
+    accessToken: '31904',
     accessCount: 1
   }
 ];
@@ -645,7 +645,7 @@ export const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
 ];
 
 export const MOCK_EMERGENCY_PROFILE: EmergencyProfileData = {
-  patientId: 'pat-101',
+  patientId: 'MV-DEMO-98450',
   fullName: 'Bharath N.',
   dateOfBirth: '1998-11-24',
   bloodGroup: 'O Positive (O+)',
@@ -656,7 +656,7 @@ export const MOCK_EMERGENCY_PROFILE: EmergencyProfileData = {
     { name: 'Kavitha N.', relation: 'Mother', phone: '+91 98450 12345' },
     { name: 'Suresh N.', relation: 'Brother', phone: '+91 98450 67890' }
   ],
-  publicToken: 'mv_emg_qr_77a89b0021c',
-  qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://medvault.health/e/mv_emg_qr_77a89b0021c',
+  publicToken: 'MV-DEMO-98450',
+  qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent('https://medvault.vercel.app/?emg=MV-DEMO-98450&name=Bharath%20N.&bg=O%20Positive%20(O%2B)&dob=1998-11-24&phone=%2B91%2098450%2012345'),
   isEnabled: true
 };

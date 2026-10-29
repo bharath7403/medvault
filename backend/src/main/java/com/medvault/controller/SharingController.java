@@ -44,7 +44,13 @@ public class SharingController {
 
             session.setCreatedAt((String) payload.get("createdAt"));
             session.setExpiresAt((String) payload.get("expiresAt"));
-            session.setAccessToken("mv_tok_" + UUID.randomUUID().toString().substring(0, 12));
+
+            String token = (String) payload.get("accessToken");
+            if (token == null || token.trim().isEmpty()) {
+                int code5 = 10000 + new Random().nextInt(90000);
+                token = String.valueOf(code5);
+            }
+            session.setAccessToken(token.trim());
             session.setStatus("ACTIVE");
             session.setAccessCount(0);
 

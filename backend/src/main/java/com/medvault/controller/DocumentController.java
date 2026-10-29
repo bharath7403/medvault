@@ -98,9 +98,10 @@ public class DocumentController {
 
     @GetMapping("/shared/{token}")
     public ResponseEntity<?> getSharedRecords(@PathVariable String token) {
-        Optional<SharingSessionEntity> shareOpt = sharingRepository.findByAccessToken(token);
+        String cleanToken = (token != null) ? token.trim() : "";
+        Optional<SharingSessionEntity> shareOpt = sharingRepository.findByAccessToken(cleanToken);
         if (shareOpt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("valid", false, "message", "Invalid or unknown sharing token."));
+            return ResponseEntity.status(404).body(Map.of("valid", false, "message", "Invalid or expired sharing code: " + cleanToken));
         }
 
         SharingSessionEntity session = shareOpt.get();

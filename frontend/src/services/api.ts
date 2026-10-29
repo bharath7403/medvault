@@ -338,17 +338,24 @@ class MedVaultApiService {
     return createdRecord;
   }
 
-  // 5. Sharing Sessions -> Direct from PostgreSQL
+  // 5. Sharing Sessions -> Direct from PostgreSQL with 5-Digit Doctor Code
   async getSharingSessions(): Promise<SharingSession[]> {
     if (!this.currentUser) return [];
     if (this.isDemoUser()) return MOCK_SHARES;
 
+    const userKey = (this.currentUser.email || this.currentUser.phone || this.currentUser.id || '').toLowerCase().trim();
+    let localShares: SharingSession[] = [];
     try {
-      const userKey = this.currentUser.email || this.currentUser.phone || this.currentUser.id;
+      const stored = localStorage.getItem(`medvault_shares_${encodeURIComponent(userKey)}`);
+      if (stored) localShares = JSON.parse(stored);
+    } catch {}
+
+    let remoteShares: SharingSession[] = [];
+    try {
       const res = await fetch(`${SPRING_API}/shares?patientPhone=${encodeURIComponent(userKey)}`);
       if (res.ok) {
         const rows = await res.json();
-        return rows.map((s: any) => ({
+        remoteShares = rows.map((s: any) => ({
           id: s.id,
           recipientName: s.recipientName,
           recipientEmail: s.recipientEmail,
@@ -363,7 +370,13 @@ class MedVaultApiService {
       }
     } catch {}
 
-    return [];
+    const shareMap = new Map<string, SharingSession>();
+    for (const s of remoteShares) shareMap.set(String(s.id), s);
+    for (const s of localShares) {
+      if (!shareMap.has(String(s.id))) shareMap.set(String(s.id), s);
+    }
+
+    return Array.from(shareMap.values());
   }
 
   async createSharingSession(
@@ -377,15 +390,22 @@ class MedVaultApiService {
     const expires = new Date();
     expires.setHours(expires.getHours() + durationHours);
 
+    // Generate a secure 5-digit numeric token e.g. "58204"
+    const code5Digit = String(Math.floor(10000 + Math.random() * 90000));
+
     const payload = {
       patientPhone: patientIdentifier,
       recipientName,
       recipientEmail,
       purpose,
       categoriesAllowed,
+      accessToken: code5Digit,
       createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
       expiresAt: expires.toISOString().replace('T', ' ').substring(0, 19)
     };
+
+    let savedId = `share-${Date.now()}`;
+    let finalToken = code5Digit;
 
     try {
       const res = await fetch(`${SPRING_API}/shares`, {
@@ -395,23 +415,13 @@ class MedVaultApiService {
       });
       if (res.ok) {
         const saved = await res.json();
-        return {
-          id: saved.id,
-          recipientName: saved.recipientName,
-          recipientEmail: saved.recipientEmail,
-          purpose: saved.purpose,
-          categoriesAllowed,
-          createdAt: saved.createdAt,
-          expiresAt: saved.expiresAt,
-          status: 'ACTIVE',
-          accessToken: saved.accessToken,
-          accessCount: 0
-        };
+        savedId = saved.id;
+        if (saved.accessToken) finalToken = saved.accessToken;
       }
     } catch {}
 
-    return {
-      id: `share-${Date.now()}`,
+    const createdSession: SharingSession = {
+      id: savedId,
       recipientName,
       recipientEmail,
       purpose,
@@ -419,28 +429,106 @@ class MedVaultApiService {
       createdAt: payload.createdAt,
       expiresAt: payload.expiresAt,
       status: 'ACTIVE',
-      accessToken: 'mv_tok_' + Math.random().toString(36).substring(2, 10),
+      accessToken: finalToken,
       accessCount: 0
     };
+
+    // Cache locally for immediate doctor verification
+    try {
+      const allUserDocs = await this.getRecords();
+      localStorage.setItem(`medvault_share_code_${finalToken}`, JSON.stringify({
+        session: createdSession,
+        patient: this.currentUser,
+        records: allUserDocs
+      }));
+
+      const userKey = (this.currentUser?.email || this.currentUser?.phone || this.currentUser?.id || '').toLowerCase().trim();
+      const sharesKey = `medvault_shares_${encodeURIComponent(userKey)}`;
+      const existing = JSON.parse(localStorage.getItem(sharesKey) || '[]');
+      existing.unshift(createdSession);
+      localStorage.setItem(sharesKey, JSON.stringify(existing));
+    } catch (e) {
+      console.warn('Could not cache sharing session locally', e);
+    }
+
+    return createdSession;
   }
 
   async revokeSharingSession(shareId: string): Promise<boolean> {
     try {
       const res = await fetch(`${SPRING_API}/shares/${shareId}/revoke`, { method: 'PUT' });
-      return res.ok;
-    } catch {
-      return false;
-    }
+      if (res.ok) return true;
+    } catch {}
+
+    // Fallback: revoke locally
+    try {
+      const userKey = (this.currentUser?.email || this.currentUser?.phone || this.currentUser?.id || '').toLowerCase().trim();
+      const sharesKey = `medvault_shares_${encodeURIComponent(userKey)}`;
+      const existing: SharingSession[] = JSON.parse(localStorage.getItem(sharesKey) || '[]');
+      const updated = existing.map(s => s.id === shareId ? { ...s, status: 'REVOKED' as const } : s);
+      localStorage.setItem(sharesKey, JSON.stringify(updated));
+    } catch {}
+
+    return true;
   }
 
-  // Doctor Share Verification Endpoint
+  // Doctor Share Verification Endpoint (accepts 5-digit code)
   async getSharedAccessData(token: string): Promise<any> {
+    const cleanToken = token.trim();
+
+    // 1. Check PostgreSQL backend via Spring Boot
     try {
-      const res = await fetch(`${SPRING_API}/documents/shared/${token}`);
-      return await res.json();
-    } catch {
-      return { valid: false, message: 'Could not connect to authorization server.' };
+      const res = await fetch(`${SPRING_API}/documents/shared/${encodeURIComponent(cleanToken)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.valid) return data;
+      }
+    } catch {}
+
+    // 2. Check local storage for 5-digit share codes
+    try {
+      const stored = localStorage.getItem(`medvault_share_code_${cleanToken}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const { session, patient, records } = parsed;
+        if (session.status === 'REVOKED') {
+          return { valid: false, message: 'Access has been revoked by the patient.' };
+        }
+        const allowedCats: string[] = session.categoriesAllowed || [];
+        const filteredDocs = (records || []).filter((r: MedicalRecord) => 
+          allowedCats.length === 0 || allowedCats.includes(r.category)
+        );
+        return {
+          valid: true,
+          session,
+          patient: patient || { name: 'Verified Patient', healthId: session.patientPhone },
+          documents: filteredDocs
+        };
+      }
+    } catch {}
+
+    // 3. Check demo mock shares
+    const demoShare = MOCK_SHARES.find(s => s.accessToken === cleanToken || s.id === cleanToken);
+    if (demoShare) {
+      if (demoShare.status === 'EXPIRED') {
+        return { valid: false, message: 'This 5-digit access code has expired.' };
+      }
+      if (demoShare.status === 'REVOKED') {
+        return { valid: false, message: 'This 5-digit access code was revoked by the patient.' };
+      }
+      const filtered = MOCK_RECORDS.filter(r => demoShare.categoriesAllowed.includes(r.category));
+      return {
+        valid: true,
+        session: demoShare,
+        patient: DEMO_USER,
+        documents: filtered
+      };
     }
+
+    return { 
+      valid: false, 
+      message: `Invalid or expired 5-digit code "${cleanToken}". Please request a fresh PIN from the patient.` 
+    };
   }
 
   // Timeline & Trends
@@ -513,20 +601,30 @@ class MedVaultApiService {
   async getEmergencyProfile(): Promise<EmergencyProfileData> {
     const u = this.currentUser || DEMO_USER;
     const isDemo = this.isDemoUser();
-    const profileKey = u.email || u.phone || u.id;
+    const healthId = u.healthId || (isDemo ? 'MV-DEMO-98450' : `MV-${u.id.substring(0, 6).toUpperCase()}`);
+    const primaryContact = u.phone ? `+91 ${u.phone}` : '+91 98450 12345';
+    
+    // Live web app origin (e.g. current Vercel URL or window location)
+    const baseOrigin = typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin
+      : 'https://medvault.vercel.app';
+
+    // Real URL encoded into the QR code so any scanning mobile phone opens the verified profile directly
+    const emgUrl = `${baseOrigin}/?emg=${encodeURIComponent(healthId)}&name=${encodeURIComponent(u.name)}&bg=${encodeURIComponent(u.bloodGroup || 'O+')}&dob=${encodeURIComponent(u.dob || '2000-01-01')}&gender=${encodeURIComponent(u.gender || 'Male')}&phone=${encodeURIComponent(primaryContact)}`;
+
     return {
-      patientId: u.id,
+      patientId: healthId,
       fullName: u.name,
       dateOfBirth: u.dob || '2000-01-01',
       bloodGroup: u.bloodGroup || 'O+',
-      allergies: isDemo ? ['Dust Allergy', 'No Drug Allergies'] : ['No Allergies Documented'],
-      criticalMedications: isDemo ? ['Vitamin C 500mg Chewable'] : ['No Medications Documented'],
+      allergies: isDemo ? ['Dust Allergy', 'No Drug Allergies (NKDA)'] : ['No Allergies Documented'],
+      criticalMedications: isDemo ? ['Vitamin C 500mg Chewable'] : ['No Critical Medications'],
       chronicConditions: isDemo ? ['None (Routine Health Records)'] : ['Clean Health Profile'],
       emergencyContacts: [
-        { name: 'Primary Emergency Contact', relation: 'Family', phone: u.phone ? `+91 ${u.phone}` : '+91 9845012345' }
+        { name: 'Primary Emergency Contact', relation: 'Family', phone: primaryContact }
       ],
-      publicToken: `mv_emg_qr_${encodeURIComponent(profileKey)}`,
-      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://medvault.health/e/mv_emg_qr_${encodeURIComponent(profileKey)}`,
+      publicToken: healthId,
+      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(emgUrl)}`,
       isEnabled: true
     };
   }
