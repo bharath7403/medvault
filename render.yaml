@@ -1,0 +1,36 @@
+services:
+  # 1. Spring Boot Backend
+  - type: web
+    name: medvault-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: medvault-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: medvault-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: medvault-db
+          property: password
+
+  # 2. Python AI Service
+  - type: web
+    name: medvault-ai
+    env: docker
+    dockerfilePath: ai-service/Dockerfile
+    dockerContext: ai-service
+    plan: free
+
+databases:
+  # 3. PostgreSQL Database
+  - name: medvault-db
+    databaseName: medvaultdb
+    user: postgres
+    plan: free

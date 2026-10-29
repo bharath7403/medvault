@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MedVault — Project Documentation Report</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1f2937;
+      line-height: 1.6;
+      margin: 0;
+      padding: 40px;
+      background-color: #f9fafb;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 60px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
+    }
+
+    /* Print Header Button */
+    .no-print {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .btn-print {
+      background: #4f46e5;
+      color: #ffffff;
+      border: none;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-print:hover {
+      background: #4338ca;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print {
+        display: none;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #111827;
+      margin-top: 0;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 36px;
+      padding-bottom: 8px;
+      border-b: 2px solid #e5e7eb;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+      margin-top: 24px;
+    }
+
+    p, li {
+      font-size: 14px;
+      color: #4b5563;
+    }
+
+    /* Badges & Pills */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-indigo {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    /* Callout Box */
+    .callout {
+      background: #f3f4f6;
+      border-left: 4px solid #4f46e5;
+      padding: 16px 20px;
+      border-radius: 0 12px 12px 0;
+      margin: 20px 0;
+      font-style: italic;
+      color: #374151;
+    }
+
+    /* Code Snippets */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #3730a3;
+    }
+
+    .meta-box {
+      background: #faf5ff;
+      border: 1px solid #f3e8ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <button class="btn-print" onclick="window.print()">🖨️ Download / Print as PDF</button>
+  </div>
+
+  <div class="container">
+    
+    <!-- Cover Title -->
+    <div style="text-align: center; margin-bottom: 40px;">
+      <span class="badge badge-indigo">Capstone Technical Documentation</span>
+      <h1 style="font-size: 32px; margin-top: 12px; color: #1e1b4b;">MedVault</h1>
+      <p style="font-size: 16px; color: #6b7280; font-weight: 500;">
+        Intelligent Personal Health Record & Medical Document Interoperability Platform
+      </p>
+    </div>
+
+    <div class="meta-box">
+      <table style="margin:0; border:none;">
+        <tr style="border:none;"><td style="border:none; padding:4px 0; font-weight:600;">Project Category:</td><td style="border:none; padding:4px 0;">Final Year B.Tech Information Technology Project</td></tr>
+        <tr style="border:none;"><td style="border:none; padding:4px 0; font-weight:600;">Domain:</td><td style="border:none; padding:4px 0;">Healthcare Informatics, AI/ML Document Intelligence, Cybersecurity</td></tr>
+        <tr style="border:none;"><td style="border:none; padding:4px 0; font-weight:600;">Core Stack:</td><td style="border:none; padding:4px 0;">React, TypeScript, Spring Boot (Java 21), FastAPI (Python), PostgreSQL</td></tr>
+      </table>
+    </div>
+
+    <!-- Section 1 -->
+    <h2>1. Executive Summary & Problem Statement</h2>
+    <p>
+      Medical records today remain heavily fragmented across hospital EMR systems, diagnostic laboratories, private clinics, and physical paper prescriptions. Patients lack a single, unified digital health identity where records can be securely preserved, understood over time, and shared under strict consent.
+    </p>
+
+    <h3>1.1 Key Challenges in Current Health Records</h3>
+    <ul>
+      <li><strong>Data Fragmentation:</strong> Histories are scattered across physical paper, PDFs, and separate hospital portals.</li>
+      <li><strong>Lack of Granular Patient Control:</strong> Patients cannot selectively share specific records (e.g., share an MRI report without exposing unrelated medical notes).</li>
+      <li><strong>Loss of Source Traceability in AI Tools:</strong> Generic medical AI tools synthesize summaries without pointing back to verifiable source documents.</li>
+      <li><strong>All-or-Nothing Emergency Exposure:</strong> Existing QR emergency systems expose either zero info or the patient's entire sensitive medical history.</li>
+    </ul>
+
+    <!-- Section 2 -->
+    <h2>2. Proposed Solution</h2>
+    <div class="callout">
+      "Your medical history should belong to you, remain understandable over time, and be shareable only when you choose."
+    </div>
+
+    <p>MedVault places the patient at the center of their health data lifecycle through 7 signature features:</p>
+    <ol>
+      <li><strong>DigiLocker-Style Unique Mobile Health Identity:</strong> Enforces 1 Mobile Number = 1 Unique Health Vault ID (<code>MV-XXXXX-XXXXX</code>), backed by 6-digit SMS OTP verification and a 4-digit security PIN.</li>
+      <li><strong>Evidence-Linked Split-Screen Document Viewer:</strong> Side-by-side view of original document evidence with structured clinical facts and clickable "View Source" highlights.</li>
+      <li><strong>Longitudinal Visual Health Timeline:</strong> Interactive chronological stream grouping consultations, lab panels, radiology, and hospital stays.</li>
+      <li><strong>Structured Biomarker Trend Plotting:</strong> Quantitative multi-year plots for lab parameters (HbA1c, Fasting Glucose, Total Cholesterol) with reference ranges.</li>
+      <li><strong>Selective Sharing & Instant Revocation:</strong> Fintech-style temporary session tokens (1h to 7d) with instant one-click revocation control.</li>
+      <li><strong>Emergency Profile & Public QR Gateway:</strong> Exposes only critical life-saving parameters (blood group, allergies, contacts) during emergency triage.</li>
+      <li><strong>Source-Grounded AI Assistant:</strong> RAG conversational drawer citing exact document titles, page numbers, and snippets.</li>
+    </ol>
+
+    <!-- Section 3 -->
+    <h2>3. System Architecture & Technology Stack</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend</strong></td>
+          <td>React 18, TypeScript, Vite, Tailwind CSS v4, Framer Motion, Recharts</td>
+          <td>Responsive modern UI, split-screen evidence viewer, trend charts</td>
+        </tr>
+        <tr>
+          <td><strong>Backend</strong></td>
+          <td>Spring Boot 3.3 (Java 21 LTS), Spring Data JPA, Spring Security</td>
+          <td>REST API, authorization, session token management</td>
+        </tr>
+        <tr>
+          <td><strong>Database</strong></td>
+          <td>PostgreSQL 16 / H2 Database</td>
+          <td>Relational storage for users, documents, extractions, audit logs</td>
+        </tr>
+        <tr>
+          <td><strong>AI Subsystem</strong></td>
+          <td>Python 3.14, FastAPI, PyMuPDF, Scikit-Learn</td>
+          <td>OCR text extraction, document classification, NER, FHIR mapping</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Section 4 -->
+    <h2>4. Modules Implemented & Completed</h2>
+    <ul>
+      <li><strong>Module 1: Authentication & Identity Management:</strong> DigiLocker-style unique mobile registration, SMS OTP verification, and per-user data isolation.</li>
+      <li><strong>Module 2: Document Ingestion & Evidence Viewer:</strong> Upload pipeline, OCR classification, and split-screen evidence viewer.</li>
+      <li><strong>Module 3: Visual Health Timeline & Biomarker Trends:</strong> Year-by-year chronological stream and Recharts quantitative metric plots.</li>
+      <li><strong>Module 4: Selective Sharing & Expiration Control:</strong> Category selector, temporary access duration, and instant one-click revocation.</li>
+      <li><strong>Module 5: Patient Privacy & Access Audit Trail:</strong> Real-time access log tracking provider names, IP addresses, and document access timestamps.</li>
+      <li><strong>Module 6: Emergency Profile & QR Code Gateway:</strong> Minimal emergency profile with public QR gateway token.</li>
+      <li><strong>Module 7: Source-Grounded AI Assistant:</strong> RAG conversational assistant with evidence source chips.</li>
+    </ul>
+
+    <!-- Section 5 -->
+    <h2>5. Future Upgrades & Extensions</h2>
+    <ul>
+      <li><strong>Client-Side Cryptographic File Encryption (AES-GCM-256):</strong> Encrypt document byte streams on the browser before uploading.</li>
+      <li><strong>SMART-on-FHIR Hospital EMR Integration:</strong> Automated pull of lab results directly from hospital systems using FHIR APIs.</li>
+      <li><strong>Offline PWA Mode:</strong> Allow patients to view emergency profiles without active internet connectivity.</li>
+      <li><strong>Blockchain Document Tamper Detection:</strong> Hash document contents onto a private permissioned ledger for immutable proof of authenticity.</li>
+      <li><strong>Multilingual Translation:</strong> Automated translation of complex medical terms into local regional languages.</li>
+    </ul>
+
+    <div style="margin-top: 50px; border-t: 1px solid #e5e7eb; padding-top: 20px; text-align: center; font-size: 12px; color: #9ca3af;">
+      MedVault — Capstone Project Report • Built for B.Tech Information Technology Presentation
+    </div>
+
+  </div>
+
+</body>
+</html>
