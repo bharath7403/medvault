@@ -3,7 +3,6 @@ services:
   - type: web
     name: medvault-backend
     env: docker
-    rootDir: backend
     dockerfilePath: Dockerfile
     dockerContext: .
     plan: free
