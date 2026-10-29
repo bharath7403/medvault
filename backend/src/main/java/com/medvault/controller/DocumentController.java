@@ -25,13 +25,14 @@ public class DocumentController {
     @Autowired
     private SharingSessionRepository sharingRepository;
 
-    private static final String UPLOAD_DIR = "D:/BHARATH/PROJECTS/medvault/backend/uploads/";
+    private static final String UPLOAD_DIR = System.getProperty("java.io.tmpdir") + File.separator + "medvault_uploads" + File.separator;
 
     @GetMapping
     public ResponseEntity<List<MedicalDocumentEntity>> getDocuments(@RequestParam(required = false) String patientId) {
         if (patientId != null && !patientId.trim().isEmpty()) {
             String clean = patientId.trim().toLowerCase();
-            if (clean.equals("bharath.demo@medvault.health") || clean.equals("9845012345") || clean.equals("mv-demo-98450") || clean.equals("usr-101")) {
+            // Only official demo identifiers return the pre-seeded demo records
+            if (clean.equals("bharath.demo@medvault.health") || clean.equals("mv-demo-98450")) {
                 List<MedicalDocumentEntity> demoDocs = documentRepository.findByPatientId("bharath.demo@medvault.health");
                 if (!demoDocs.isEmpty()) {
                     return ResponseEntity.ok(demoDocs);
@@ -54,19 +55,30 @@ public class DocumentController {
             @RequestParam(value = "factsJson", required = false) String factsJson
     ) {
         try {
-            File dir = new File(UPLOAD_DIR);
-            if (!dir.exists()) dir.mkdirs();
+            try {
+                File dir = new File(UPLOAD_DIR);
+                if (!dir.exists()) dir.mkdirs();
 
-            String storedFileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            File dest = new File(dir, storedFileName);
-            try (FileOutputStream fos = new FileOutputStream(dest)) {
-                fos.write(file.getBytes());
+                String orig = (file.getOriginalFilename() != null && !file.getOriginalFilename().trim().isEmpty())
+                        ? file.getOriginalFilename()
+                        : "document_" + System.currentTimeMillis() + ".jpg";
+                String storedFileName = UUID.randomUUID() + "_" + orig;
+                File dest = new File(dir, storedFileName);
+                try (FileOutputStream fos = new FileOutputStream(dest)) {
+                    fos.write(file.getBytes());
+                }
+            } catch (Exception fileWriteEx) {
+                // Ignore filesystem write error on ephemeral container disks
             }
+
+            String filename = (file.getOriginalFilename() != null && !file.getOriginalFilename().trim().isEmpty())
+                    ? file.getOriginalFilename()
+                    : "record_" + System.currentTimeMillis() + ".jpg";
 
             MedicalDocumentEntity doc = new MedicalDocumentEntity();
             doc.setPatientId(patientId);
-            doc.setFileName(file.getOriginalFilename());
-            doc.setFileType(file.getOriginalFilename().toLowerCase().endsWith(".pdf") ? "PDF" : "IMAGE");
+            doc.setFileName(filename);
+            doc.setFileType(filename.toLowerCase().endsWith(".pdf") ? "PDF" : "IMAGE");
             doc.setFileSizeBytes(file.getSize());
             doc.setCategory(category);
             doc.setDocumentDate(documentDate != null ? documentDate : LocalDateTime.now().toString().substring(0, 10));

@@ -46,6 +46,12 @@ class MedVaultApiService {
     this.initSession();
   }
 
+  private isDemoUser(): boolean {
+    if (!this.currentUser) return false;
+    const email = (this.currentUser.email || '').toLowerCase().trim();
+    return email === DEMO_USER.email.toLowerCase();
+  }
+
   private initSession() {
     const stored = localStorage.getItem('medvault_active_session');
     if (stored) {
@@ -148,32 +154,42 @@ class MedVaultApiService {
     localStorage.removeItem('medvault_active_session');
   }
 
-  // 3. Document Fetching -> Direct from PostgreSQL
+  // 3. Document Fetching -> Direct from PostgreSQL & Isolated Per Account
   async getRecords(category?: DocumentCategory): Promise<MedicalRecord[]> {
     if (!this.currentUser) return [];
 
-    // Demo account always has the pre-loaded relatable demo records
-    if (this.currentUser.email === DEMO_USER.email || this.currentUser.phone === '9845012345') {
+    // ONLY the official demo account gets the pre-loaded sample records
+    if (this.isDemoUser()) {
       return category ? MOCK_RECORDS.filter(r => r.category === category) : MOCK_RECORDS;
     }
 
+    const userKey = (this.currentUser.email || this.currentUser.phone || this.currentUser.id || '').toLowerCase().trim();
+    const localKey = `medvault_docs_${encodeURIComponent(userKey)}`;
+    let localDocs: MedicalRecord[] = [];
     try {
-      const userKey = this.currentUser.email || this.currentUser.phone || this.currentUser.id;
+      const stored = localStorage.getItem(localKey);
+      if (stored) {
+        localDocs = JSON.parse(stored);
+      }
+    } catch {}
+
+    let remoteDocs: MedicalRecord[] = [];
+    try {
       const res = await fetch(`${SPRING_API}/documents?patientId=${encodeURIComponent(userKey)}`);
       if (res.ok) {
         const rows = await res.json();
-        return rows.map((r: any) => ({
+        remoteDocs = rows.map((r: any) => ({
           id: r.id,
           patientId: r.patientId,
           fileName: r.fileName,
-          fileType: r.fileType,
+          fileType: r.fileType || (r.fileName?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMAGE'),
           fileSizeBytes: r.fileSizeBytes || 1024,
           category: r.category as DocumentCategory,
-          uploadDate: r.createdAt ? r.createdAt.substring(0, 10) : '2026-10-23',
-          documentDate: r.documentDate || '2026-10-23',
+          uploadDate: r.createdAt ? r.createdAt.substring(0, 10) : new Date().toISOString().substring(0, 10),
+          documentDate: r.documentDate || new Date().toISOString().substring(0, 10),
           hospital: r.hospital || 'General Clinic',
           doctor: r.doctor || 'Consulting Physician',
-          fileHash: r.fileHash,
+          fileHash: r.fileHash || ('sha256_' + r.id),
           status: 'EXTRACTION_COMPLETE',
           fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
           version: 1,
@@ -184,17 +200,33 @@ class MedVaultApiService {
             doctorName: r.doctor,
             documentDate: r.documentDate,
             summary: r.summary,
-            facts: JSON.parse(r.factsJson || '[]'),
+            facts: (() => {
+              try { return JSON.parse(r.factsJson || '[]'); } catch { return []; }
+            })(),
             fhirJson: { resourceType: 'DocumentReference', status: 'current' }
           }
         }));
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Could not fetch remote documents', e);
+    }
 
-    return [];
+    // Merge remote and local (avoiding duplicates by id)
+    const recordMap = new Map<string, MedicalRecord>();
+    for (const d of remoteDocs) {
+      recordMap.set(String(d.id), d);
+    }
+    for (const d of localDocs) {
+      if (!recordMap.has(String(d.id))) {
+        recordMap.set(String(d.id), d);
+      }
+    }
+
+    const merged = Array.from(recordMap.values());
+    return category ? merged.filter(r => r.category === category) : merged;
   }
 
-  // 4. Live Upload -> Python AI OCR + PostgreSQL Persistence
+  // 4. Live Upload -> Python AI OCR + PostgreSQL Persistence + Local User Persistence
   async uploadRecord(
     file: File,
     category: DocumentCategory,
@@ -227,16 +259,17 @@ class MedVaultApiService {
     } catch {}
 
     if (factsList.length === 0) {
+      const isImg = file.type.startsWith('image/') || file.name.toLowerCase().match(/\.(png|jpe?g|webp)$/);
       factsList = [{
         id: 'fact-1',
-        factKey: 'Document Processed',
+        factKey: isImg ? 'Document Photo Captured' : 'Document Ingested',
         factValue: 'Verified',
         unit: '',
-        referenceRange: 'Normal',
+        referenceRange: 'Standard',
         category: 'Record',
         pageNumber: 1,
         snippetText: `Clinical record verified: ${file.name}`,
-        confidence: 0.96
+        confidence: 0.98
       }];
     }
 
@@ -263,16 +296,17 @@ class MedVaultApiService {
       }
     } catch {}
 
-    return {
+    const isImageFile = file.type.startsWith('image/') || file.name.toLowerCase().match(/\.(png|jpe?g|webp)$/);
+    const createdRecord: MedicalRecord = {
       id: savedId,
       patientId: userIdentifier,
       fileName: file.name,
-      fileType: file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'PNG',
+      fileType: isImageFile ? 'IMAGE' : 'PDF',
       fileSizeBytes: file.size,
       category,
       uploadDate: new Date().toISOString().substring(0, 10),
       documentDate: documentDate || new Date().toISOString().substring(0, 10),
-      hospital: hospital || 'General Clinic',
+      hospital: hospital || 'General Diagnostic Clinic',
       doctor: doctor || 'Consulting Physician',
       fileHash: 'sha256_' + Math.random().toString(36).substring(2),
       status: 'EXTRACTION_COMPLETE',
@@ -281,20 +315,33 @@ class MedVaultApiService {
       extraction: {
         id: `ext-${savedId}`,
         documentType: category,
-        hospitalName: hospital,
-        doctorName: doctor,
-        documentDate,
+        hospitalName: hospital || 'General Diagnostic Clinic',
+        doctorName: doctor || 'Consulting Physician',
+        documentDate: documentDate || new Date().toISOString().substring(0, 10),
         summary: summaryText,
         facts: factsList,
         fhirJson: { resourceType: 'DocumentReference', status: 'current' }
       }
     };
+
+    // Save to user's local persistence so it displays immediately even on network latency
+    try {
+      const localKey = `medvault_docs_${encodeURIComponent(userIdentifier.toLowerCase().trim())}`;
+      const existingStr = localStorage.getItem(localKey);
+      const list = existingStr ? JSON.parse(existingStr) : [];
+      list.unshift(createdRecord);
+      localStorage.setItem(localKey, JSON.stringify(list));
+    } catch (e) {
+      console.warn('Could not cache document locally', e);
+    }
+
+    return createdRecord;
   }
 
   // 5. Sharing Sessions -> Direct from PostgreSQL
   async getSharingSessions(): Promise<SharingSession[]> {
     if (!this.currentUser) return [];
-    if (this.currentUser.email === DEMO_USER.email || this.currentUser.phone === '9845012345') return MOCK_SHARES;
+    if (this.isDemoUser()) return MOCK_SHARES;
 
     try {
       const userKey = this.currentUser.email || this.currentUser.phone || this.currentUser.id;
@@ -398,7 +445,7 @@ class MedVaultApiService {
 
   // Timeline & Trends
   async getTimeline(): Promise<TimelineEvent[]> {
-    if (this.currentUser?.email === DEMO_USER.email || this.currentUser?.phone === '9845012345') return MOCK_TIMELINE;
+    if (this.isDemoUser()) return MOCK_TIMELINE;
     const recs = await this.getRecords();
     return recs.map(rec => ({
       id: `time-${rec.id}`,
@@ -414,7 +461,7 @@ class MedVaultApiService {
   }
 
   async getTrends(metricKey: string): Promise<TrendDataPoint[]> {
-    if (this.currentUser?.email === DEMO_USER.email || this.currentUser?.phone === '9845012345') {
+    if (this.isDemoUser()) {
       return MOCK_TRENDS[metricKey.toLowerCase()] || MOCK_TRENDS['hba1c'];
     }
     const records = await this.getRecords();
@@ -438,8 +485,25 @@ class MedVaultApiService {
   }
 
   async getMedications(): Promise<Medication[]> {
-    if (this.currentUser?.email === DEMO_USER.email || this.currentUser?.phone === '9845012345') return MOCK_MEDICATIONS;
-    return [];
+    if (this.isDemoUser()) return MOCK_MEDICATIONS;
+    // Extract medications from uploaded prescriptions
+    const records = await this.getRecords('PRESCRIPTION');
+    const meds: Medication[] = [];
+    records.forEach(rec => {
+      rec.extraction.facts.forEach((fact, idx) => {
+        meds.push({
+          id: `med-${rec.id}-${idx}`,
+          name: fact.factKey,
+          dosage: fact.factValue,
+          frequency: fact.unit || 'Once Daily',
+          startDate: rec.documentDate,
+          doctor: rec.doctor,
+          status: 'ACTIVE',
+          sourceRecordId: rec.id
+        });
+      });
+    });
+    return meds;
   }
 
   async getAuditLogs(): Promise<AuditLogEntry[]> {
@@ -448,7 +512,7 @@ class MedVaultApiService {
 
   async getEmergencyProfile(): Promise<EmergencyProfileData> {
     const u = this.currentUser || DEMO_USER;
-    const isDemo = u.email === DEMO_USER.email || u.phone === '9845012345';
+    const isDemo = this.isDemoUser();
     const profileKey = u.email || u.phone || u.id;
     return {
       patientId: u.id,

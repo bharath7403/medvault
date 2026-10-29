@@ -69,59 +69,73 @@ export const MedicationTimeline: React.FC<MedicationTimelineProps> = ({
           Currently Active Medications ({activeMeds.length})
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeMeds.map((med) => {
-            const matchingRec = records.find(r => r.id === med.sourceRecordId) || records[0];
-            return (
-              <div 
-                key={med.id}
-                className="p-5 rounded-2xl bg-gray-900/60 border border-gray-800 space-y-3 relative overflow-hidden"
-              >
-                {med.conflictFlag && (
-                  <div className="absolute top-0 right-0 bg-amber-500 text-gray-950 font-bold text-[9px] uppercase px-3 py-0.5 rounded-bl-xl flex items-center space-x-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span>Verify Dosage</span>
-                  </div>
-                )}
+        {activeMeds.length === 0 ? (
+          <div className="p-8 sm:p-12 rounded-2xl sm:rounded-3xl bg-gray-900/40 border border-dashed border-gray-800 text-center flex flex-col items-center justify-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+              <Pill className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm">
+              <h3 className="text-sm font-bold text-white">No Prescriptions Uploaded</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Snap a photo of your doctor's prescription note to automatically extract medications, dosages, and verify drug interactions.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeMeds.map((med) => {
+              const matchingRec = records.find(r => r.id === med.sourceRecordId) || records[0];
+              return (
+                <div 
+                  key={med.id}
+                  className="p-5 rounded-2xl bg-gray-900/60 border border-gray-800 space-y-3 relative overflow-hidden"
+                >
+                  {med.conflictFlag && (
+                    <div className="absolute top-0 right-0 bg-amber-500 text-gray-950 font-bold text-[9px] uppercase px-3 py-0.5 rounded-bl-xl flex items-center space-x-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Verify Dosage</span>
+                    </div>
+                  )}
 
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-xs text-indigo-400 font-medium">Prescribed by {med.doctor}</div>
-                    <h3 className="text-base font-bold text-white mt-0.5">{med.name}</h3>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-xs text-indigo-400 font-medium">Prescribed by {med.doctor}</div>
+                      <h3 className="text-base font-bold text-white mt-0.5">{med.name}</h3>
+                    </div>
+                    <span className="text-xs font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                      {med.dosage}
+                    </span>
                   </div>
-                  <span className="text-xs font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                    {med.dosage}
-                  </span>
-                </div>
 
-                <div className="p-3 rounded-xl bg-gray-950 border border-gray-800 text-xs text-gray-300 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Frequency:</span>
-                    <span className="font-semibold text-white">{med.frequency}</span>
+                  <div className="p-3 rounded-xl bg-gray-950 border border-gray-800 text-xs text-gray-300 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Frequency:</span>
+                      <span className="font-semibold text-white">{med.frequency}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Started On:</span>
+                      <span className="font-medium text-gray-300">{med.startDate}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Started On:</span>
-                    <span className="font-medium text-gray-300">{med.startDate}</span>
-                  </div>
-                </div>
 
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500 flex items-center space-x-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Verified Rx Evidence</span>
-                  </span>
-                  <button
-                    onClick={() => onSelectRecord(matchingRec)}
-                    className="flex items-center space-x-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold px-2.5 py-1 rounded-lg bg-gray-950 border border-gray-800"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    <span>View Prescription</span>
-                  </button>
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="text-[11px] text-gray-500 flex items-center space-x-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Verified Rx Evidence</span>
+                    </span>
+                    <button
+                      onClick={() => onSelectRecord(matchingRec)}
+                      className="flex items-center space-x-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold px-2.5 py-1 rounded-lg bg-gray-950 border border-gray-800"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>View Prescription</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Discontinued Medications */}

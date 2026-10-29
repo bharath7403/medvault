@@ -85,31 +85,41 @@ export const HealthTrends: React.FC<HealthTrendsProps> = ({
             {metricTitles[selectedMetric]} Longitudinal Plot
           </h2>
           <span className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 self-start sm:self-auto">
-            Reference Range: {trendData[0]?.referenceRange || 'Standard'}
+            Reference Range: {trendData[0]?.referenceRange || 'Standard Range'}
           </span>
         </div>
 
-        <div className="h-60 sm:h-72 w-full pt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
-              <YAxis stroke="#9ca3af" fontSize={11} domain={['auto', 'auto']} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '0.75rem', fontSize: '0.75rem' }}
-                itemStyle={{ color: '#34d399' }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#10b981" 
-                strokeWidth={3}
-                dot={{ r: 6, fill: '#10b981', stroke: '#111827', strokeWidth: 2 }}
-                activeDot={{ r: 8, fill: '#34d399' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {trendData.length === 0 ? (
+          <div className="h-60 sm:h-72 w-full flex flex-col items-center justify-center text-center p-6 bg-gray-950/40 rounded-2xl border border-dashed border-gray-800">
+            <TrendingUp className="w-8 h-8 text-emerald-400/50 mb-2" />
+            <h4 className="text-sm font-bold text-gray-300">No {metricTitles[selectedMetric]} Data Yet</h4>
+            <p className="text-xs text-gray-500 max-w-sm mt-1">
+              Upload blood tests or diagnostic panels to track quantitative clinical values over time.
+            </p>
+          </div>
+        ) : (
+          <div className="h-60 sm:h-72 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
+                <YAxis stroke="#9ca3af" fontSize={11} domain={['auto', 'auto']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '0.75rem', fontSize: '0.75rem' }}
+                  itemStyle={{ color: '#34d399' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  dot={{ r: 6, fill: '#10b981', stroke: '#111827', strokeWidth: 2 }}
+                  activeDot={{ r: 8, fill: '#34d399' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* Source Records Data Points Table */}
@@ -118,37 +128,43 @@ export const HealthTrends: React.FC<HealthTrendsProps> = ({
           Recorded Data Points & Linked Documents ({trendData.length})
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {trendData.map((dp, idx) => {
-            const matchingRec = records.find(r => r.id === dp.sourceRecordId) || records[0];
-            return (
-              <div 
-                key={idx}
-                className="p-4 rounded-2xl bg-gray-950 border border-gray-800 flex items-center justify-between"
-              >
-                <div>
-                  <div className="flex items-center space-x-2 text-xs text-gray-400">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{dp.date}</span>
-                    <span>•</span>
-                    <span>{dp.hospital}</span>
-                  </div>
-                  <div className="text-base font-extrabold text-white mt-1">
-                    {dp.value} <span className="text-xs text-gray-400 font-normal">{dp.unit}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onSelectRecord(matchingRec)}
-                  className="flex items-center space-x-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-800 hover:border-indigo-500/40 transition-all"
+        {trendData.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-gray-950/50 border border-dashed border-gray-800/80 text-center text-xs text-gray-500">
+            No source documents contributing to this metric.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {trendData.map((dp, idx) => {
+              const matchingRec = records.find(r => r.id === dp.sourceRecordId) || records[0];
+              return (
+                <div 
+                  key={idx}
+                  className="p-4 rounded-2xl bg-gray-950 border border-gray-800 flex items-center justify-between"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>View Source</span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                  <div>
+                    <div className="flex items-center space-x-2 text-xs text-gray-400">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>{dp.date}</span>
+                      <span>•</span>
+                      <span>{dp.hospital}</span>
+                    </div>
+                    <div className="text-base font-extrabold text-white mt-1">
+                      {dp.value} <span className="text-xs text-gray-400 font-normal">{dp.unit}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onSelectRecord(matchingRec)}
+                    className="flex items-center space-x-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-800 hover:border-indigo-500/40 transition-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>View Source</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

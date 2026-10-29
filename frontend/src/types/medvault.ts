@@ -50,7 +50,7 @@ export interface MedicalRecord {
   id: string;
   patientId: string;
   fileName: string;
-  fileType: 'PDF' | 'PNG' | 'JPG';
+  fileType: 'PDF' | 'PNG' | 'JPG' | 'IMAGE';
   fileSizeBytes: number;
   category: DocumentCategory;
   uploadDate: string;

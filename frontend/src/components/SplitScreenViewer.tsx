@@ -136,7 +136,10 @@ export const SplitScreenViewer: React.FC<SplitScreenViewerProps> = ({ record, on
   const [selectedFact, setSelectedFact] = useState<MedicalFact | null>(
     record.extraction.facts[0] || null
   );
-  const [leftViewMode, setLeftViewMode] = useState<'DOCUMENT_SHEET' | 'EVIDENCE_SNIPPETS'>('DOCUMENT_SHEET');
+  const isImage = record.fileType === 'IMAGE' || record.fileType === 'PNG' || record.fileType === 'JPG' || (Boolean(record.fileUrl) && !record.fileUrl.endsWith('.pdf'));
+  const [leftViewMode, setLeftViewMode] = useState<'DOCUMENT_SHEET' | 'PHOTO' | 'EVIDENCE_SNIPPETS'>(
+    isImage && record.fileUrl && !record.fileUrl.includes('dummy.pdf') ? 'PHOTO' : 'DOCUMENT_SHEET'
+  );
   const [showFhir, setShowFhir] = useState(false);
 
   const handleOpenPrintable = () => {
@@ -242,6 +245,18 @@ export const SplitScreenViewer: React.FC<SplitScreenViewerProps> = ({ record, on
 
             {/* View Switcher Tabs */}
             <div className="flex items-center bg-gray-950 p-1 rounded-xl border border-gray-800 text-xs">
+              {record.fileUrl && !record.fileUrl.includes('dummy.pdf') && (
+                <button
+                  onClick={() => setLeftViewMode('PHOTO')}
+                  className={`px-2.5 sm:px-3 py-1 rounded-lg font-semibold transition-all text-xs ${
+                    leftViewMode === 'PHOTO'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Captured Photo
+                </button>
+              )}
               <button
                 onClick={() => setLeftViewMode('DOCUMENT_SHEET')}
                 className={`px-2.5 sm:px-3 py-1 rounded-lg font-semibold transition-all text-xs ${
@@ -265,7 +280,21 @@ export const SplitScreenViewer: React.FC<SplitScreenViewerProps> = ({ record, on
             </div>
           </div>
 
-          {/* Mode A: Authentic Official Clinical Paper Sheet */}
+          {/* Mode A: Captured Photo Preview */}
+          {leftViewMode === 'PHOTO' && (
+            <div className="flex-1 rounded-2xl bg-black/60 border border-gray-800 p-3 sm:p-5 flex flex-col items-center justify-center overflow-auto max-h-[85vh]">
+              <img
+                src={record.fileUrl}
+                alt={record.fileName}
+                className="max-w-full max-h-[72vh] object-contain rounded-xl shadow-2xl border border-gray-800"
+              />
+              <p className="text-[11px] text-gray-400 mt-3 text-center">
+                Original Camera Capture: <span className="text-gray-200 font-medium">{record.fileName}</span> ({(record.fileSizeBytes / 1024).toFixed(1)} KB)
+              </p>
+            </div>
+          )}
+
+          {/* Mode B: Authentic Official Clinical Paper Sheet */}
           {leftViewMode === 'DOCUMENT_SHEET' && (
             <div className="flex-1 rounded-2xl bg-white text-gray-900 p-4 sm:p-7 shadow-2xl relative flex flex-col font-sans border border-gray-300 overflow-y-auto max-h-[85vh]">
               {/* Watermark Seal */}
