@@ -38,6 +38,14 @@ public class AuthController {
         String cleanEmail = email.trim().toLowerCase();
 
         if (userRepository.existsByEmail(cleanEmail)) {
+            Optional<UserEntity> existingOpt = userRepository.findByEmail(cleanEmail);
+            if (existingOpt.isPresent() && password.equals(existingOpt.get().getPassword())) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Account found! Logged in successfully.",
+                    "user", existingOpt.get()
+                ));
+            }
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "message", "An account with email " + cleanEmail + " already exists. Please sign in."

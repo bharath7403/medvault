@@ -19,8 +19,12 @@ import {
   MOCK_AUDIT_LOGS
 } from './mockData';
 
-const SPRING_API = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-const AI_API = import.meta.env.VITE_AI_URL || 'http://localhost:8000';
+const rawSpring = import.meta.env.VITE_API_URL || 'https://medvault-bey5.onrender.com/api';
+const cleanSpring = String(rawSpring).replace(/[<>'"\s]/g, '').replace(/\/+$/, '');
+const SPRING_API = cleanSpring.endsWith('/api') ? cleanSpring : `${cleanSpring}/api`;
+
+const rawAi = import.meta.env.VITE_AI_URL || 'http://localhost:8000';
+const AI_API = String(rawAi).replace(/[<>'"\s]/g, '').replace(/\/+$/, '');
 
 const DEMO_USER: User = {
   id: 'usr-101',
@@ -75,11 +79,15 @@ class MedVaultApiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, phone, dob, gender, bloodGroup })
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {}
+
       if (res.ok && data.user) {
         this.currentUser = data.user;
         localStorage.setItem('medvault_active_session', JSON.stringify(data.user));
-        return { success: true, message: data.message, user: data.user };
+        return { success: true, message: data.message || 'Account created successfully', user: data.user };
       }
       return { success: false, message: data.message || 'Registration failed' };
     } catch {
